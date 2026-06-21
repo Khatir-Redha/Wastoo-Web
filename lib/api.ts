@@ -1,17 +1,13 @@
-import axios from "axios";
+// lib/api.ts
+import axios from 'axios';
 
-export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000",
-  headers: {
-    "Content-Type": "application/json",
-  },
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
+  withCredentials: true, // <--- THIS IS THE CRITICAL LINE
 });
 
-// Intercept requests to attach the token
-api.interceptors.request.use((config) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Since your backend ignores the Authorization header, 
+// you technically don't even need the interceptor anymore! 
+// You can delete api.interceptors.request.use(...) entirely if you want.
+
+export default api;

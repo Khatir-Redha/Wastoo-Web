@@ -1,8 +1,8 @@
-"use client" // Ensure this is marked as a client component to handle events and hooks
+"use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation" // For redirection after logout
-import { useAuth } from "@/context/AuthProvider" // Adjust this path to wherever your useAuth hook or context lives
+import { useRouter, usePathname } from "next/navigation" 
+import { useAuth } from "@/context/AuthProvider" 
 import {
   LayoutDashboard,
   Users,
@@ -39,56 +39,57 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+// Replaced '#' with actual routing structure
 const navData = {
   overview: [
-    { title: "Overview", url: "#", icon: LayoutDashboard, isActive: true },
+    { title: "Overview", url: "/admin", icon: LayoutDashboard },
   ],
   sections: [
     {
       title: "USERS",
       items: [
-        { title: "All Users", url: "#", icon: Users },
-        { title: "KYC Queue", url: "#", icon: ShieldCheck, badge: "28" },
-        { title: "Charity Verification", url: "#", icon: HeartHandshake, badge: "4" },
-        { title: "Roles", url: "#", icon: Shield },
+        { title: "All Users", url: "/admin/users", icon: Users },
+        { title: "KYC Queue", url: "/admin/kyc", icon: ShieldCheck, badge: "28" },
+        { title: "Charity Verification", url: "/admin/charities", icon: HeartHandshake, badge: "4" },
+        { title: "Roles", url: "/admin/roles", icon: Shield },
       ],
     },
     {
       title: "CONTENT",
       items: [
-        { title: "Waste Posts", url: "#", icon: FileText },
-        { title: "Moderation Log", url: "#", icon: Gavel, badge: "6" },
+        { title: "Waste Posts", url: "/admin/posts", icon: FileText },
+        { title: "Moderation Log", url: "/admin/moderation", icon: Gavel, badge: "6" },
       ],
     },
     {
       title: "OPERATIONS",
       items: [
-        { title: "Pickups", url: "#", icon: Truck },
-        { title: "Wallet", url: "#", icon: Wallet },
-        { title: "Marketplace", url: "#", icon: Store },
+        { title: "Pickups", url: "/admin/pickups", icon: Truck },
+        { title: "Wallet", url: "/admin/wallet", icon: Wallet },
+        { title: "Marketplace", url: "/admin/marketplace", icon: Store },
       ],
     },
     {
       title: "CONFIGURATION",
       items: [
-        { title: "Eco-Coin Rates", url: "#", icon: Leaf },
-        { title: "CO2 Factors", url: "#", icon: Cloud },
-        { title: "Notifications", url: "#", icon: Bell },
+        { title: "Eco-Coin Rates", url: "/admin/rates", icon: Leaf },
+        { title: "CO2 Factors", url: "/admin/co2", icon: Cloud },
+        { title: "Notifications", url: "/admin/notifications", icon: Bell },
       ],
     },
     {
       title: "ANALYTICS",
       items: [
-        { title: "Platform Analytics", url: "#", icon: BarChart2 },
-        { title: "Impact", url: "#", icon: Activity },
-        { title: "Reports", url: "#", icon: FileBarChart },
+        { title: "Platform Analytics", url: "/admin/analytics", icon: BarChart2 },
+        { title: "Impact", url: "/admin/impact", icon: Activity },
+        { title: "Reports", url: "/admin/reports", icon: FileBarChart },
       ],
     },
     {
       title: "SYSTEM",
       items: [
-        { title: "Audit Logs", url: "#", icon: ScrollText },
-        { title: "Settings", url: "#", icon: Settings },
+        { title: "Audit Logs", url: "/admin/audit", icon: ScrollText },
+        { title: "Settings", url: "/admin/settings", icon: Settings },
       ],
     },
   ],
@@ -96,14 +97,12 @@ const navData = {
 
 export function AppSidebar() {
   const router = useRouter()
-  const { logout } = useAuth() // Pulling the logout method from your Auth context
+  const pathname = usePathname() // <-- Get current route
+  const { logout } = useAuth()
 
   const handleLogout = async () => {
     try {
-      // 1. Call your auth context's logout function (which triggers the backend POST /auth/logout)
       await logout()
-      
-      // 2. Redirect back to the login screen
       router.push("/login")
     } catch (error) {
       console.error("Failed to log out cleanly:", error)
@@ -131,24 +130,25 @@ export function AppSidebar() {
 
       {/* Main Content */}
       <SidebarContent className="gap-0 pr-2">
-        {/* Overview (Active State) */}
+        {/* Overview */}
         <SidebarGroup className="py-0 mb-2">
           <SidebarGroupContent>
             <SidebarMenu>
-              {navData.overview.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={item.isActive}
-                    className="h-8 py-1 data-[active=true]:bg-[#F0FDF4] data-[active=true]:text-[#006b2c] data-[active=true]:border-l-[3px] data-[active=true]:border-[#006b2c] rounded-r-lg rounded-l-none"
-                  >
-                    <a href={item.url} className="flex items-center gap-3">
+              {navData.overview.map((item) => {
+                const isActive = pathname === item.url
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={isActive}
+                      onClick={() => router.push(item.url)}
+                      className="h-8 py-1 data-[active=true]:bg-[#F0FDF4] data-[active=true]:text-[#006b2c] data-[active=true]:border-l-[3px] data-[active=true]:border-[#006b2c] data-[active=true]:font-semibold rounded-r-lg rounded-l-none text-[#3e4a3d] hover:bg-[#f2f4f7] transition-all flex items-center gap-3 cursor-pointer w-full justify-start pl-3"
+                    >
                       <item.icon className="h-4 w-4" />
-                      <span className="font-semibold">{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -161,21 +161,27 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-0.5">
-                {section.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild className="h-8 py-1 px-3 text-[#3e4a3d] hover:bg-[#f2f4f7] rounded-lg transition-all">
-                      <a href={item.url} className="flex items-center gap-3">
+                {section.items.map((item) => {
+                  const isActive = pathname === item.url // <-- Check active state
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton 
+                        isActive={isActive}
+                        onClick={() => router.push(item.url)}
+                        // Applied unified active styling across all items
+                        className="h-8 py-1 data-[active=true]:bg-[#F0FDF4] data-[active=true]:text-[#006b2c] data-[active=true]:border-l-[3px] data-[active=true]:border-[#006b2c] data-[active=true]:font-semibold rounded-r-lg rounded-l-none text-[#3e4a3d] hover:bg-[#f2f4f7] transition-all flex items-center gap-3 cursor-pointer w-full justify-start pl-3"
+                      >
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
-                      </a>
-                    </SidebarMenuButton>
-                    {item.badge && (
-                      <SidebarMenuBadge className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full mr-2">
-                        {item.badge}
-                      </SidebarMenuBadge>
-                    )}
-                  </SidebarMenuItem>
-                ))}
+                      </SidebarMenuButton>
+                      {item.badge && (
+                        <SidebarMenuBadge className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full mr-2">
+                          {item.badge}
+                        </SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  )
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -186,7 +192,6 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-[#bdcaba] p-3">
         <SidebarMenu>
           <SidebarMenuItem>
-            {/* Removed asChild so we can natively target the click event directly on the item button */}
             <SidebarMenuButton 
               onClick={handleLogout}
               className="h-8 py-1 px-3 text-[#3e4a3d] hover:bg-red-50 hover:text-red-600 rounded-lg w-full justify-start gap-3 transition-colors cursor-pointer"

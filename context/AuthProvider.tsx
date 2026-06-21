@@ -1,19 +1,22 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { api } from "@/lib/api"; // Assuming this is an Axios instance
+import api from "@/lib/api";
 
+// 1. Updated interface to match your exact backend response
 export interface User {
-  userId: number | string;
+  id: number;
   name: string;
-  email?: string;
-  role?: 
-    | "Citizen" 
-    | "Collector" 
-    | "Recycling Centre" 
-    | "Charity" 
-    | "Admin" 
-    | string;
+  email: string;
+  phone: string | null;
+  status: string;
+  role: string;
+  photo: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  provider: string | null;
+  providerId: string | null;
 }
 
 export type AuthContextType = {
@@ -23,6 +26,15 @@ export type AuthContextType = {
   logout: () => Promise<void>;
 };
 
+const setCookie = (name: string, value: string, days = 7) => {
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
+};
+
+const deleteCookie = (name: string) => {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+};
+
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -30,66 +42,75 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    hydrateAuthSession();
   }, []);
 
-  const checkAuth = async () => {
-    const token = localStorage.getItem("accessToken");
-    
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
+  // 2. Fetch authoritative profile directly from the backend
+  const fetchProfile = async (overrideToken?: string) => {
     try {
-      // Calls the /user endpoint mapped in your NestJS App
-      const res = await api.get("/user", {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      // If a token is provided directly, force it into the header
+      const config = overrideToken
+        ? { headers: { Authorization: `Bearer ${overrideToken}` } }
+        : {};
+
+      const res = await api.get("/user", config);
       setUser(res.data);
-    } catch {
-      // If the token is invalid or expired, clear the local state
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      setUser(null);
+      return res.data;
+    } catch (error) {
+      console.error("Failed to fetch authoritative user profile:", error);
+      cleanupAuth();
+      throw error;
+    }
+  };
+  const hydrateAuthSession = async () => {
+    setLoading(true);
+    try {
+      const savedToken = localStorage.getItem("access_token");
+
+      if (savedToken) {
+        // If we have a token, ask the backend who this user is
+        await fetchProfile();
+      } else {
+        cleanupAuth();
+      }
+    } catch (error) {
+      // Error handled inside fetchProfile
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
-    // Hits the NestJS /auth/login endpoint
-    const res = await api.post("/auth/login", { email, password });
-    
-    // Extract token object and user details from your auth.service.ts response format
-    const { token, user: userData } = res.data;
+    try {
+      const res = await api.post("/auth/login", { email, password });
 
-    if (token?.accessToken) {
-      localStorage.setItem("accessToken", token.accessToken);
-      localStorage.setItem("refreshToken", token.refreshToken);
-      setUser(userData); // Optimistic UI update
+      const accessToken = res.data?.token?.accessToken || res.data?.accessToken;
+      const refreshToken =
+        res.data?.token?.refreshToken || res.data?.refreshToken;
+
+      if (accessToken) {
+        setCookie("access_token", accessToken, 1);
+        if (refreshToken) setCookie("refresh_token", refreshToken, 7);
+        localStorage.setItem("access_token", accessToken);
+
+        // Explicitly pass the brand-new token so it doesn't rely on the interceptor catching up
+        await fetchProfile(accessToken);
+      }
+    } catch (error) {
+      console.error("Login execution failed:", error);
+      throw error;
     }
   };
 
-  const logout = async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    
-    if (refreshToken) {
-      try {
-        // Hits the NestJS /auth/logout endpoint to revoke the token in the database
-        await api.post("/auth/logout", { refreshToken });
-      } catch (error) {
-        console.error("Logout request failed:", error);
-      }
-    }
-
-    // Clear local state regardless of server response
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+  const cleanupAuth = () => {
+    deleteCookie("access_token");
+    deleteCookie("refresh_token");
+    localStorage.removeItem("access_token");
     setUser(null);
+  };
+
+  const logout = async () => {
+    cleanupAuth();
   };
 
   return (
@@ -99,7 +120,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// Custom hook helper
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
