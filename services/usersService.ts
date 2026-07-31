@@ -1,44 +1,69 @@
-// services/userService.ts
-import api  from '../lib/api';
+import api from '../lib/api';
+
+export type UserRole = 'CITIZEN' | 'COLLECTOR' | 'RECYCLING_CENTER' | 'CHARITY' | 'ADMIN' | 'BUYER';
+
+export type UserStatusValue = 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'NOT_VERIFIED' | 'DELETED';
 
 export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'ADMIN' | 'CITIZEN' | 'COLLECTOR' | 'CHARITY'; // Map to your ENUM
-  phone?: string;
-  photo?: string;
-  status: 'ACTIVE' | 'PENDING' | 'SUSPENDED';
+  phone: string | null;
+  status: UserStatusValue;
+  role: UserRole;
+  photo: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  provider: string | null;
+  providerId: string | null;
+  kyc_status?: 'PENDING' | 'VERIFIED' | 'REJECTED' | null;
+}
+
+export interface GetUsersResponse {
+  users: User[];
+  roleCounts: Array<{ role: UserRole; _count: { role: number } }>;
 }
 
 export const userService = {
-  // GET /user/all (Admin Only)
-  getAllUsers: async () => {
-    const { data } = await api.get<User[]>('/user/all');
+  getAllUsers: async (): Promise<GetUsersResponse> => {
+    const { data } = await api.get<GetUsersResponse>('/user/all');
     return data;
   },
 
-  // GET /user (Current User Profile)
-  getMyProfile: async () => {
+  getMyProfile: async (): Promise<User> => {
     const { data } = await api.get<User>('/user');
     return data;
   },
 
-  // PATCH /user (Update Current Profile)
-  updateMyProfile: async (payload: Partial<User>) => {
+  updateMyProfile: async (payload: Partial<User>): Promise<User> => {
     const { data } = await api.patch<User>('/user', payload);
     return data;
   },
 
-  // PATCH /user/:id (Archive user - Admin Only)
-  archiveUser: async (id: number) => {
-    const { data } = await api.patch(`/user/${id}`);
+  archiveUser: async (id: number): Promise<User> => {
+    const { data } = await api.patch<User>(`/user/${id}`, { status: 'SUSPENDED' });
     return data;
   },
 
-  // DELETE /user/:id (Delete user - Admin Only)
-  deleteUser: async (id: number) => {
-    const { data } = await api.delete(`/user/${id}`);
+  suspendUser: async (id: number): Promise<User> => {
+    const { data } = await api.patch<User>(`/user/${id}`, { status: 'SUSPENDED' });
     return data;
-  }
+  },
+
+  banUser: async (id: number): Promise<User> => {
+    const { data } = await api.patch<User>(`/user/${id}`, { status: 'BANNED' });
+    return data;
+  },
+
+  activateUser: async (id: number): Promise<User> => {
+    const { data } = await api.patch<User>(`/user/${id}`, { status: 'ACTIVE' });
+    return data;
+  },
+
+  deleteUser: async (id: number): Promise<void> => {
+    await api.delete(`/user/${id}`);
+  },
 };
+
+export default userService;

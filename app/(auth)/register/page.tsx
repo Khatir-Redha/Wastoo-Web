@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/context/AuthProvider"; // Assuming you export useAuth from AuthProvider
-import { api } from "@/lib/api";
+import  api  from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -277,7 +277,7 @@ export default function RegisterPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedRole("Collector")}
+                  onClick={() => setSelectedRole("COLLECTOR")}
                   className={`flex items-center space-x-2 p-3 border rounded-xl transition-all text-sm font-medium ${selectedRole === "Collector" ? "border-primary bg-primary/5 text-primary" : "border-border hover:border-primary text-foreground"}`}
                 >
                   <Truck

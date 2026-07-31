@@ -13,7 +13,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import Image from "next/image";
-import { api } from "@/lib/api";
+import  api  from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 
 export default function ResetPasswordPage() {

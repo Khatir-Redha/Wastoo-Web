@@ -12,7 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
-import { api } from "@/lib/api";
+import api  from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -43,8 +43,9 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      // Pass the email as a query parameter in the URL string
-      const response = await api.post(`/auth/forgetPassword?email=${encodeURIComponent(targetEmail)}`);
+      const response = await api.post(`/auth/forgetPassword`, {
+        email: targetEmail,
+      });
 
       const data = response.data;
       console.log(data);
