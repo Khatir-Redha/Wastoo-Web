@@ -10,6 +10,7 @@ import {
   Trash2,
   User as UserIcon,
   UserCheck,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import {
@@ -19,7 +20,7 @@ import {
   UserStatusValue,
   GetUsersResponse,
 } from "@/services/usersService";
-import kycService, { KycDocument, KycStatus } from "@/services/kycService";
+import { KycStatus } from "@/services/kycService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -70,7 +71,7 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [kycLoading, setKycLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -78,11 +79,13 @@ export default function UsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const data: GetUsersResponse = await userService.getAllUsers();
       setUsers(data.users);
     } catch (error) {
       console.error("Failed to fetch users", error);
+      setError("Failed to load users. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -92,11 +95,16 @@ export default function UsersPage() {
     let isMounted = true;
     const load = async () => {
       setLoading(true);
+      setError(null);
       try {
         const data: GetUsersResponse = await userService.getAllUsers();
         if (isMounted) setUsers(data.users);
       } catch (error) {
         console.error("Failed to fetch users", error);
+        if (isMounted)
+          setError(
+            "Failed to load users. Please check your connection and try again."
+          );
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -106,55 +114,6 @@ export default function UsersPage() {
       isMounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadKyc = async () => {
-      const collectors = users.filter(
-        (u) => u.role === "COLLECTOR" && !u.kyc_status
-      );
-      if (collectors.length === 0) return;
-
-      setKycLoading(true);
-      try {
-        const updates: Record<
-          number,
-          "PENDING" | "VERIFIED" | "REJECTED" | null
-        > = {};
-
-        await Promise.all(
-          collectors.map(async (u) => {
-            try {
-              const kyc: KycDocument | null = await kycService.getUserKyc(u.id);
-              updates[u.id] = kyc?.status ?? null;
-            } catch {
-              updates[u.id] = null;
-            }
-          })
-        );
-
-        if (isMounted) {
-          setUsers((prev) =>
-            prev.map((u) =>
-              updates[u.id] !== undefined
-                ? { ...u, kyc_status: updates[u.id] }
-                : u
-            )
-          );
-        }
-      } catch (error) {
-        console.error("Failed to fetch KYC statuses", error);
-      } finally {
-        if (isMounted) setKycLoading(false);
-      }
-    };
-
-    loadKyc();
-    return () => {
-      isMounted = false;
-    };
-  }, [users]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
@@ -203,15 +162,6 @@ export default function UsersPage() {
     }
   };
 
-  const handleBan = async (id: number) => {
-    try {
-      await userService.banUser(id);
-      await fetchUsers();
-    } catch (error) {
-      console.error("Failed to ban user", error);
-    }
-  };
-
   const handleActivate = async (id: number) => {
     try {
       await userService.activateUser(id);
@@ -245,26 +195,12 @@ export default function UsersPage() {
         label: "Suspend",
         icon: <PauseCircle className="w-4 h-4" />,
         onClick: () => handleSuspend(u.id),
-      });
-      options.push({
-        label: "Ban",
-        icon: <Ban className="w-4 h-4" />,
-        onClick: () => handleBan(u.id),
         danger: true,
       });
-    } else if (u.status === "SUSPENDED") {
-      options.push({
-        label: "Reactivate",
-        icon: <UserCheck className="w-4 h-4" />,
-        onClick: () => handleActivate(u.id),
-      });
-      options.push({
-        label: "Ban",
-        icon: <Ban className="w-4 h-4" />,
-        onClick: () => handleBan(u.id),
-        danger: true,
-      });
-    } else if (u.status === "BANNED") {
+    } else if (
+      u.status === "SUSPENDED" ||
+      u.status === "BANNED"
+    ) {
       options.push({
         label: "Reactivate",
         icon: <UserCheck className="w-4 h-4" />,
@@ -336,7 +272,14 @@ export default function UsersPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-[#bdcaba] shadow-sm overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="p-8 text-center">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          </div>
+        ) : loading ? (
           <div className="divide-y divide-[#bdcaba]/50">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-4">
@@ -351,7 +294,9 @@ export default function UsersPage() {
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="p-10 text-center text-[#6e7b6c]">
-            No users match your filters.
+            {users.length === 0 && !searchTerm && roleFilter === "ALL" && statusFilter === "ALL"
+              ? "No users found in the system."
+              : "No users match your filters."}
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
@@ -432,8 +377,8 @@ export default function UsersPage() {
                             {kycStatus}
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-slate-100 text-slate-500 border-slate-200">
-                            {kycLoading ? "Loading…" : "Not Submitted"}
+                           <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-slate-100 text-slate-500 border-slate-200">
+                             Not Submitted
                           </span>
                         )
                       ) : (

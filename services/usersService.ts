@@ -17,6 +17,7 @@ export interface User {
   deletedAt: string | null;
   provider: string | null;
   providerId: string | null;
+  address: string | null;
   kyc_status?: 'PENDING' | 'VERIFIED' | 'REJECTED' | null;
 }
 
@@ -27,8 +28,23 @@ export interface GetUsersResponse {
 
 export const userService = {
   getAllUsers: async (): Promise<GetUsersResponse> => {
-    const { data } = await api.get<GetUsersResponse>('/user/all');
+    const { data } = await api.get('/admin/users');
+    if (Array.isArray(data)) {
+      return { users: data, roleCounts: [] };
+    }
     return data;
+  },
+
+  getUserDetail: async (id: number): Promise<User> => {
+    try {
+      const { data } = await api.get<User>(`/admin/users/${id}`);
+      return data;
+    } catch {
+      const { users } = await userService.getAllUsers();
+      const found = users.find((u) => u.id === id);
+      if (!found) throw new Error("User not found");
+      return found;
+    }
   },
 
   getMyProfile: async (): Promise<User> => {
@@ -41,24 +57,26 @@ export const userService = {
     return data;
   },
 
-  archiveUser: async (id: number): Promise<User> => {
-    const { data } = await api.patch<User>(`/user/${id}`, { status: 'SUSPENDED' });
+  updateUserStatus: async (
+    id: number,
+    status: UserStatusValue
+  ): Promise<User> => {
+    const { data } = await api.patch<User>(`/admin/users/${id}/status`, {
+      status,
+    });
     return data;
   },
 
   suspendUser: async (id: number): Promise<User> => {
-    const { data } = await api.patch<User>(`/user/${id}`, { status: 'SUSPENDED' });
-    return data;
-  },
-
-  banUser: async (id: number): Promise<User> => {
-    const { data } = await api.patch<User>(`/user/${id}`, { status: 'BANNED' });
-    return data;
+    return userService.updateUserStatus(id, 'SUSPENDED');
   },
 
   activateUser: async (id: number): Promise<User> => {
-    const { data } = await api.patch<User>(`/user/${id}`, { status: 'ACTIVE' });
-    return data;
+    return userService.updateUserStatus(id, 'ACTIVE');
+  },
+
+  banUser: async (id: number): Promise<User> => {
+    return userService.updateUserStatus(id, 'BANNED');
   },
 
   deleteUser: async (id: number): Promise<void> => {
