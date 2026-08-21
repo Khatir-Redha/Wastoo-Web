@@ -1,13 +1,23 @@
-// lib/api.ts
 import axios from 'axios';
+import { deleteCookie } from './cookies';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-  withCredentials: true, // <--- THIS IS THE CRITICAL LINE
+  withCredentials: true,
 });
 
-// Since your backend ignores the Authorization header, 
-// you technically don't even need the interceptor anymore! 
-// You can delete api.interceptors.request.use(...) entirely if you want.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      deleteCookie('access_token');
+      deleteCookie('refresh_token');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
