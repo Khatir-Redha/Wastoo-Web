@@ -51,10 +51,10 @@ export const notificationService = {
   broadcast: async (payload: {
     title: string;
     body: string;
-    actionUrl?: string;
-  }): Promise<{ success: boolean }> => {
-    const { data } = await api.post<{ success: boolean }>(
-      '/admin/notifications/broadcast',
+    targetRole?: string;
+  }): Promise<{ success: boolean; usersTargeted: number }> => {
+    const { data } = await api.post<{ success: boolean; usersTargeted: number }>(
+      '/notification/admin/announcements',
       payload
     );
     return data;

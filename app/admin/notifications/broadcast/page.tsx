@@ -6,38 +6,15 @@ import {
   Send,
   AlertCircle,
   CheckCircle2,
-  RefreshCw,
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { notificationService } from "@/services/notificationService";
-import { userService } from "@/services/usersService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
-const KNOWN_ROUTES = [
-  "/admin",
-  "/admin/users",
-  "/admin/kyc",
-  "/admin/charities",
-  "/admin/roles",
-  "/admin/posts",
-  "/admin/moderation",
-  "/admin/pickups",
-  "/admin/wallet",
-  "/admin/marketplace",
-  "/admin/rates",
-  "/admin/co2",
-  "/admin/notifications",
-  "/admin/analytics",
-  "/admin/impact",
-  "/admin/reports",
-  "/admin/audit",
-  "/admin/settings",
-];
 
 export default function BroadcastPage() {
   const router = useRouter();
@@ -45,41 +22,14 @@ export default function BroadcastPage() {
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [actionUrl, setActionUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [loadingCount, setLoadingCount] = useState(true);
+  const [usersTargeted, setUsersTargeted] = useState<number | null>(null);
 
   const isAdminGatePassed = !authLoading && !!authUser && authUser.role === "ADMIN";
-
-  useEffect(() => {
-    let isMounted = true;
-    const loadCount = async () => {
-      try {
-        const data = await userService.getAllUsers();
-        if (isMounted) {
-          const total =
-            data.roleCounts?.reduce(
-              (sum, r) => sum + (r._count?.role || 0),
-              0
-            ) || data.users?.length || 0;
-          setUserCount(total);
-        }
-      } catch {
-        if (isMounted) setUserCount(null);
-      } finally {
-        if (isMounted) setLoadingCount(false);
-      }
-    };
-    loadCount();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const validate = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -89,12 +39,8 @@ export default function BroadcastPage() {
     if (!body.trim()) errors.body = "Body is required.";
     if (body.length > 500)
       errors.body = "Body must be 500 characters or fewer.";
-    if (actionUrl && !KNOWN_ROUTES.includes(actionUrl)) {
-      errors.actionUrl =
-        "Action URL must be a valid in-app route (e.g. /admin/kyc).";
-    }
     return errors;
-  }, [title, body, actionUrl]);
+  }, [title, body]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,11 +62,11 @@ export default function BroadcastPage() {
     setError(null);
 
     try {
-      await notificationService.broadcast({
+      const result = await notificationService.broadcast({
         title: title.trim(),
         body: body.trim(),
-        ...(actionUrl ? { actionUrl: actionUrl.trim() } : {}),
       });
+      setUsersTargeted(result.usersTargeted ?? null);
       setSuccess(true);
     } catch (err: any) {
       const status = err?.response?.status;
@@ -184,10 +130,19 @@ export default function BroadcastPage() {
           <h2 className="text-2xl font-bold text-[#191c1e] mb-2">
             Broadcast queued
           </h2>
-          <p className="text-[#3e4a3d] text-sm mb-8">
-            Your announcement has been queued for delivery. It may take a few
-            minutes to reach all users.
+          <p className="text-[#3e4a3d] text-sm mb-1">
+            Your announcement has been queued for delivery.
           </p>
+          {usersTargeted !== null && (
+            <p className="text-[#3e4a3d] text-sm mb-8">
+              Targeted <span className="font-semibold">{usersTargeted.toLocaleString()}</span> users.
+            </p>
+          )}
+          {usersTargeted === null && (
+            <p className="text-[#3e4a3d] text-sm mb-8">
+              It may take a few minutes to reach all users.
+            </p>
+          )}
           <div className="flex items-center justify-center gap-3">
             <Button
               variant="outline"
@@ -195,9 +150,9 @@ export default function BroadcastPage() {
                 setSuccess(false);
                 setTitle("");
                 setBody("");
-                setActionUrl("");
                 setFieldErrors({});
                 setError(null);
+                setUsersTargeted(null);
               }}
             >
               Send another
@@ -219,7 +174,7 @@ export default function BroadcastPage() {
             Broadcast Announcement
           </h2>
           <p className="text-[#3e4a3d] text-sm mt-1">
-            Send a platform-wide notification to all users.
+            Send a platform-wide SYSTEM notification to all users.
           </p>
         </div>
 
@@ -312,35 +267,6 @@ export default function BroadcastPage() {
                 </span>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="actionUrl">Action URL (optional)</Label>
-              <Input
-                id="actionUrl"
-                placeholder="/admin/kyc"
-                value={actionUrl}
-                onChange={(e) => {
-                  setActionUrl(e.target.value);
-                  if (fieldErrors.actionUrl)
-                    setFieldErrors((prev) => {
-                      const next = { ...prev };
-                      delete next.actionUrl;
-                      return next;
-                    });
-                }}
-                className={cn(
-                  fieldErrors.actionUrl &&
-                    "border-red-300 focus-visible:border-red-400"
-                )}
-              />
-              <p className="text-xs text-[#6e7b6c]">
-                Must be a valid in-app route. Leave blank to keep users on the
-                notification centre.
-              </p>
-              {fieldErrors.actionUrl && (
-                <p className="text-xs text-red-600">{fieldErrors.actionUrl}</p>
-              )}
-            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3">
@@ -383,11 +309,8 @@ export default function BroadcastPage() {
               Confirm broadcast
             </h3>
             <p className="text-sm text-[#3e4a3d] mb-6">
-              {loadingCount
-                ? "This will notify all users on the platform — send anyway?"
-                : userCount !== null
-                  ? `This will notify all ${userCount.toLocaleString()} users — send anyway?`
-                  : "This will notify all users on the platform — send anyway?"}
+              This will send a SYSTEM notification to all users on the platform.
+              This action cannot be undone.
             </p>
             <div className="flex items-center justify-end gap-3">
               <Button

@@ -7,7 +7,6 @@ import {
   Trash2,
   Truck,
   User,
-  MapPin,
   Calendar,
   Weight,
   FileText,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { pickupService, Pickup, PickupStatus } from "@/services/pickup.service";
+import { postService, Post } from "@/services/post.service";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +46,7 @@ export default function PickupDetailPage() {
   const id = params?.id ? Number(params.id) : null;
 
   const [pickup, setPickup] = useState<Pickup | null>(null);
+  const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -60,8 +61,12 @@ export default function PickupDetailPage() {
       if (!id) return;
       setError(null);
       try {
-        const data = await pickupService.getPickupById(id);
-        if (isMounted) setPickup(data);
+        const pickupData = await pickupService.getPickupById(id);
+        if (isMounted) {
+          setPickup(pickupData);
+          const postData = await postService.getPostById(pickupData.post_id);
+          if (isMounted) setPost(postData);
+        }
       } catch (err) {
         console.error("Failed to fetch pickup", err);
         if (isMounted)
@@ -156,8 +161,6 @@ export default function PickupDetailPage() {
     );
   }
 
-  const post = pickup.post;
-
   return (
     <div className="p-6 md:p-8 animate-in fade-in duration-500">
       <div className="flex items-center gap-4 mb-6">
@@ -188,10 +191,10 @@ export default function PickupDetailPage() {
             <div className="flex items-start gap-4 mb-6">
               <div className="flex-1">
                 <h4 className="text-lg font-semibold text-[#191c1e]">
-                  {post.title}
+                  {post?.title || "Loading..."}
                 </h4>
                 <p className="text-sm text-[#6e7b6c] mt-1">
-                  {post.description || "No description provided"}
+                  {post?.description || "No description provided"}
                 </p>
                 <div className="mt-2 flex items-center gap-2">
                   <span
@@ -203,7 +206,7 @@ export default function PickupDetailPage() {
                     {pickup.status}
                   </span>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold border bg-slate-50 text-slate-600 border-slate-200">
-                    {post.category}
+                    {post?.category || "—"}
                   </span>
                 </div>
               </div>
@@ -280,7 +283,7 @@ export default function PickupDetailPage() {
             </div>
           </div>
 
-          {post.images && post.images.length > 0 && (
+          {post?.images && post.images.length > 0 && (
             <div className="bg-white rounded-xl border border-[#bdcaba] p-6">
               <h3 className="text-base font-semibold text-[#191c1e] mb-4 flex items-center gap-2">
                 Post Images
@@ -291,7 +294,7 @@ export default function PickupDetailPage() {
                   <img
                     key={image.id}
                     src={image.url}
-                    alt={`${post.title} - ${image.order + 1}`}
+                    alt={`${post?.title || 'post'} - ${image.order + 1}`}
                     className="w-full h-32 object-cover rounded-lg border border-[#bdcaba]"
                   />
                 ))}
@@ -311,19 +314,19 @@ export default function PickupDetailPage() {
                 <span className="text-xs text-[#6e7b6c] uppercase tracking-wider">
                   Name
                 </span>
-                <p className="mt-1 text-[#191c1e]">{pickup.owner.name}</p>
+                <p className="mt-1 text-[#191c1e]">{pickup.owner?.name || "Unknown"}</p>
               </div>
               <div>
                 <span className="text-xs text-[#6e7b6c] uppercase tracking-wider">
                   Email
                 </span>
-                <p className="mt-1 text-[#191c1e]">{pickup.owner.email}</p>
+                <p className="mt-1 text-[#191c1e]">{pickup.owner?.email || "—"}</p>
               </div>
               <div>
                 <span className="text-xs text-[#6e7b6c] uppercase tracking-wider">
                   User ID
                 </span>
-                <p className="mt-1 text-[#191c1e]">#{pickup.owner.id}</p>
+                <p className="mt-1 text-[#191c1e]">#{pickup.owner?.id ?? pickup.owner_id}</p>
               </div>
             </div>
           </div>
@@ -339,19 +342,19 @@ export default function PickupDetailPage() {
                   <span className="text-xs text-[#6e7b6c] uppercase tracking-wider">
                     Name
                   </span>
-                  <p className="mt-1 text-[#191c1e]">{pickup.collector.name}</p>
+                  <p className="mt-1 text-[#191c1e]">{pickup.collector?.name || "Unknown"}</p>
                 </div>
                 <div>
                   <span className="text-xs text-[#6e7b6c] uppercase tracking-wider">
                     Email
                   </span>
-                  <p className="mt-1 text-[#191c1e]">{pickup.collector.email}</p>
+                  <p className="mt-1 text-[#191c1e]">{pickup.collector?.email || "—"}</p>
                 </div>
                 <div>
                   <span className="text-xs text-[#6e7b6c] uppercase tracking-wider">
                     User ID
                   </span>
-                  <p className="mt-1 text-[#191c1e]">#{pickup.collector.id}</p>
+                  <p className="mt-1 text-[#191c1e]">#{pickup.collector?.id ?? pickup.collector_id}</p>
                 </div>
               </div>
             ) : (

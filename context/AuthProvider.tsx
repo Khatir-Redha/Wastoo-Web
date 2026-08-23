@@ -45,15 +45,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     hydrateAuthSession();
   }, []);
 
-  // 2. Fetch authoritative profile directly from the backend
-  const fetchProfile = async (overrideToken?: string) => {
+  const fetchProfile = async () => {
     try {
-      // If a token is provided directly, force it into the header
-      const config = overrideToken
-        ? { headers: { Authorization: `Bearer ${overrideToken}` } }
-        : {};
-
-      const res = await api.get("/user", config);
+      const res = await api.get("/user");
       setUser(res.data);
       return res.data;
     } catch (error) {
@@ -93,8 +87,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (refreshToken) setCookie("refresh_token", refreshToken, 7);
         localStorage.setItem("access_token", accessToken);
 
-        // Explicitly pass the brand-new token so it doesn't rely on the interceptor catching up
-        await fetchProfile(accessToken);
+        // Fetch profile using the session cookie set by the backend
+        await fetchProfile();
       }
     } catch (error) {
       console.error("Login execution failed:", error);
