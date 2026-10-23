@@ -59,16 +59,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const hydrateAuthSession = async () => {
     setLoading(true);
     try {
-      const savedToken = localStorage.getItem("access_token");
-
-      if (savedToken) {
-        // If we have a token, ask the backend who this user is
-        await fetchProfile();
-      } else {
-        cleanupAuth();
-      }
+      // Attempt to fetch profile directly (supports both cookie-based sessions from OAuth and token headers)
+      await fetchProfile();
     } catch (error) {
-      // Error handled inside fetchProfile
+      cleanupAuth();
     } finally {
       setLoading(false);
     }
